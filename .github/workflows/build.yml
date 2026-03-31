@@ -2,9 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -27,28 +27,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 构建 prod 环境的 debug APK（用于测试）
+      # 构建 prod debug APK（API Key 由用户在 App 内设置，无需注入）
       - name: Build prod debug APK
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: ./gradlew assembleProdDebug -PDEEPSEEK_API_KEY="$DEEPSEEK_API_KEY"
+        run: ./gradlew assembleProdDebug
 
       - name: Upload prod debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ai-memo-prod-debug
           path: app/build/outputs/apk/prod/debug/app-prod-debug.apk
-          retention-days: 30
-
-      # 构建 prod 环境的 release APK（正式版）
-      - name: Build prod release APK
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: ./gradlew assembleProdRelease -PDEEPSEEK_API_KEY="$DEEPSEEK_API_KEY"
-
-      - name: Upload prod release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-memo-prod-release
-          path: app/build/outputs/apk/prod/release/app-prod-release-unsigned.apk
           retention-days: 30
