@@ -17,30 +17,22 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        // DeepSeek API Key - 从 local.properties 或环境变量读取
-        buildConfigField(
-            "String",
-            "DEEPSEEK_API_KEY",
-            "\"${project.findProperty("DEEPSEEK_API_KEY") ?: System.getenv("DEEPSEEK_API_KEY") ?: ""}\""
-        )
+        // API Key 不再硬编码在 BuildConfig 中
+        // 用户在 App 内设置页面配置，存储在 EncryptedSharedPreferences
     }
 
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            // Debug 环境标记
-            buildConfigField("String", "API_BASE_URL", "\"https://api.deepseek.com/\"")
             buildConfigField("Boolean", "ENABLE_LOGGING", "true")
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false  // MVP 阶段先关闭混淆，避免反射问题
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "API_BASE_URL", "\"https://api.deepseek.com/\"")
             buildConfigField("Boolean", "ENABLE_LOGGING", "false")
         }
     }
@@ -79,6 +71,7 @@ android {
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.security.crypto)
 
     // Compose
     implementation(platform(libs.androidx.compose.bom))

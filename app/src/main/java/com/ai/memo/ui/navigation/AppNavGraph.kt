@@ -9,11 +9,13 @@ import androidx.navigation.navArgument
 import com.ai.memo.ui.screen.add.AddMemoScreen
 import com.ai.memo.ui.screen.detail.MemoDetailScreen
 import com.ai.memo.ui.screen.list.MemoListScreen
+import com.ai.memo.ui.screen.settings.SettingsScreen
 
 object Routes {
     const val MEMO_LIST = "memo_list"
     const val ADD_MEMO = "add_memo"
     const val MEMO_DETAIL = "memo_detail/{memoId}"
+    const val SETTINGS = "settings"
 
     fun memoDetail(memoId: Long) = "memo_detail/$memoId"
 }
@@ -32,6 +34,9 @@ fun AppNavGraph(navController: NavHostController) {
                 },
                 onNavigateToDetail = { memoId ->
                     navController.navigate(Routes.memoDetail(memoId))
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Routes.SETTINGS)
                 }
             )
         }
@@ -55,6 +60,15 @@ fun AppNavGraph(navController: NavHostController) {
             val memoId = backStackEntry.arguments?.getLong("memoId") ?: return@composable
             MemoDetailScreen(
                 memoId = memoId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // 设置页面
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }

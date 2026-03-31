@@ -55,6 +55,40 @@ data class Usage(
     val totalTokens: Int = 0
 )
 
+// ==================== Claude Request/Response ====================
+
+@Serializable
+data class ClaudeRequest(
+    val model: String,
+    @SerialName("max_tokens")
+    val maxTokens: Int = 1024,
+    val system: String = "",
+    val messages: List<Message>,
+    val temperature: Double = 0.1
+) {
+    @Serializable
+    data class Message(
+        val role: String,
+        val content: String
+    )
+}
+
+@Serializable
+data class ClaudeResponse(
+    val id: String = "",
+    val type: String = "",
+    val role: String = "",
+    val content: List<ContentBlock> = emptyList(),
+    @SerialName("stop_reason")
+    val stopReason: String? = null
+) {
+    @Serializable
+    data class ContentBlock(
+        val type: String = "text",
+        val text: String = ""
+    )
+}
+
 // ==================== AI 解析结果 ====================
 
 @Serializable
