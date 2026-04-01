@@ -27,7 +27,10 @@ import retrofit2.http.POST
 class AiProviderFactory(
     private val okHttpClient: OkHttpClient
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true   // 确保 max_tokens 等带默认值的字段也会被序列化
+    }
 
     /**
      * 调用 AI 接口，统一返回 ChatResponse
