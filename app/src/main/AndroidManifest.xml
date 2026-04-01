@@ -4,6 +4,24 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Android 11+ 包可见性：声明需要查询的 Intent -->
+    <queries>
+        <!-- 日历 Intent -->
+        <intent>
+            <action android:name="android.intent.action.INSERT" />
+            <data android:mimeType="vnd.android.cursor.dir/event" />
+        </intent>
+        <!-- 分享 Intent -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+        <!-- 语音识别 Intent -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
     <application
         android:name=".MemoApplication"
         android:allowBackup="true"

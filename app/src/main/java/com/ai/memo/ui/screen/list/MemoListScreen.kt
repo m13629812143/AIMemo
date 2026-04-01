@@ -218,8 +218,11 @@ private fun addToCalendar(context: Context, memo: Memo) {
         putExtra(CalendarContract.EXTRA_EVENT_END_TIME, timeMillis + 3600000) // 默认1小时
     }
 
-    if (intent.resolveActivity(context.packageManager) != null) {
+    try {
         context.startActivity(intent)
+    } catch (e: Exception) {
+        // 设备无日历应用时的兜底处理
+        android.widget.Toast.makeText(context, "未找到日历应用", android.widget.Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -238,5 +241,9 @@ private fun shareMemo(context: Context, memo: Memo) {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(Intent.createChooser(intent, "分享备忘录"))
+    try {
+        context.startActivity(Intent.createChooser(intent, "分享备忘录"))
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(context, "分享失败", android.widget.Toast.LENGTH_SHORT).show()
+    }
 }

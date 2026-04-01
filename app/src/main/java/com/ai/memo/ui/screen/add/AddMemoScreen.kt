@@ -83,14 +83,17 @@ fun AddMemoScreen(
         }
     }
 
-    // 保存成功后返回
+    // 保存成功后返回（先重置状态，再导航，避免 Composable 已移除后操作状态）
     LaunchedEffect(uiState) {
-        if (uiState is AddMemoUiState.Saved) {
-            onNavigateBack()
-            viewModel.resetState()
-        }
-        if (uiState is AddMemoUiState.Error) {
-            snackbarHostState.showSnackbar((uiState as AddMemoUiState.Error).message)
+        when (uiState) {
+            is AddMemoUiState.Saved -> {
+                viewModel.resetState()
+                onNavigateBack()
+            }
+            is AddMemoUiState.Error -> {
+                snackbarHostState.showSnackbar((uiState as AddMemoUiState.Error).message)
+            }
+            else -> { /* no-op */ }
         }
     }
 
@@ -206,7 +209,8 @@ fun AddMemoScreen(
                 parsed?.let {
                     ParsedResultCard(
                         memo = it.memo,
-                        onSave = { viewModel.saveMemo(it.memo) }
+                        onSave = { viewModel.saveMemo(it.memo) },
+                        onReparse = { viewModel.parseWithAI() }
                     )
                 }
             }
@@ -219,7 +223,8 @@ fun AddMemoScreen(
 @Composable
 private fun ParsedResultCard(
     memo: Memo,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onReparse: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -276,10 +281,10 @@ private fun ParsedResultCard(
 
             Row {
                 OutlinedButton(
-                    onClick = { /* TODO: 允许编辑后保存 */ },
+                    onClick = onReparse,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("编辑修改")
+                    Text("重新解析")
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Button(

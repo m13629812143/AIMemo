@@ -10,6 +10,7 @@ import com.ai.memo.domain.repository.MemoRepository
 import com.ai.memo.ui.screen.add.AddMemoViewModel
 import com.ai.memo.ui.screen.detail.MemoDetailViewModel
 import com.ai.memo.ui.screen.list.MemoListViewModel
+import com.ai.memo.ui.screen.settings.SettingsViewModel
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.android.ext.koin.androidContext
@@ -28,7 +29,9 @@ val appModule = module {
             androidContext(),
             MemoDatabase::class.java,
             "memo_database"
-        ).build()
+        )
+            .fallbackToDestructiveMigration()  // MVP 阶段：版本升级时销毁重建，避免崩溃
+            .build()
     }
 
     single { get<MemoDatabase>().memoDao() }
@@ -68,4 +71,5 @@ val appModule = module {
     viewModel { MemoListViewModel(get()) }
     viewModel { AddMemoViewModel(get()) }
     viewModel { params -> MemoDetailViewModel(params.get(), get()) }
+    viewModel { SettingsViewModel(get()) }
 }

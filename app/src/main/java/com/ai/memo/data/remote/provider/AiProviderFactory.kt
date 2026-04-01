@@ -11,9 +11,7 @@ import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFact
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.ResponseBody
 import retrofit2.HttpException
-import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.Body
 import retrofit2.http.Header
@@ -31,6 +29,9 @@ class AiProviderFactory(
         ignoreUnknownKeys = true
         encodeDefaults = true   // 确保 max_tokens 等带默认值的字段也会被序列化
     }
+
+    // 缓存 Retrofit 实例，避免每次调用都重新创建（反射 + 动态代理开销）
+    private val retrofitCache = mutableMapOf<String, Retrofit>()
 
     /**
      * 调用 AI 接口，统一返回 ChatResponse
@@ -61,7 +62,7 @@ class AiProviderFactory(
         systemPrompt: String,
         userMessage: String
     ): ChatResponse {
-        val api = createRetrofit(AiProvider.DEEP_SEEK.baseUrl).create(DeepSeekEndpoint::class.java)
+        val api = getRetrofit(AiProvider.DEEP_SEEK.baseUrl).create(DeepSeekEndpoint::class.java)
         return api.chatCompletion(
             authorization = "Bearer $apiKey",
             request = ChatRequest(
@@ -85,7 +86,7 @@ class AiProviderFactory(
         systemPrompt: String,
         userMessage: String
     ): ChatResponse {
-        val api = createRetrofit(provider.baseUrl).create(ClaudeEndpoint::class.java)
+        val api = getRetrofit(provider.baseUrl).create(ClaudeEndpoint::class.java)
         val response = api.createMessage(
             apiKey = apiKey,
             request = ClaudeRequest(
@@ -98,12 +99,18 @@ class AiProviderFactory(
             )
         )
         // 将 Claude 响应转换为统一的 ChatResponse 格式
+        // Claude 的 stop_reason 为 "end_turn"，统一映射为 "stop"
+        val finishReason = when (response.stopReason) {
+            "end_turn" -> "stop"
+            "max_tokens" -> "length"
+            else -> response.stopReason ?: "stop"
+        }
         return ChatResponse(
             id = response.id,
             choices = listOf(
                 Choice(
                     index = 0,
-                    finishReason = response.stopReason ?: "stop",
+                    finishReason = finishReason,
                     message = ChatMessage(
                         role = "assistant",
                         content = response.content.firstOrNull()?.text ?: ""
@@ -119,7 +126,7 @@ class AiProviderFactory(
         systemPrompt: String,
         userMessage: String
     ): ChatResponse {
-        val api = createRetrofit(AiProvider.OPENAI.baseUrl).create(OpenAIEndpoint::class.java)
+        val api = getRetrofit(AiProvider.OPENAI.baseUrl).create(OpenAIEndpoint::class.java)
         return api.chatCompletion(
             authorization = "Bearer $apiKey",
             request = ChatRequest(
@@ -132,13 +139,15 @@ class AiProviderFactory(
         )
     }
 
-    private fun createRetrofit(baseUrl: String): Retrofit {
-        val contentType = "application/json".toMediaType()
-        return Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .client(okHttpClient)
-            .addConverterFactory(json.asConverterFactory(contentType))
-            .build()
+    private fun getRetrofit(baseUrl: String): Retrofit {
+        return retrofitCache.getOrPut(baseUrl) {
+            val contentType = "application/json".toMediaType()
+            Retrofit.Builder()
+                .baseUrl(baseUrl)
+                .client(okHttpClient)
+                .addConverterFactory(json.asConverterFactory(contentType))
+                .build()
+        }
     }
 }
 

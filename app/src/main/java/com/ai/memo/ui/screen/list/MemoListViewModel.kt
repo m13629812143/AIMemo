@@ -17,6 +17,10 @@ class MemoListViewModel(
     private val _uiState = MutableStateFlow<MemoListUiState>(MemoListUiState.Loading)
     val uiState: StateFlow<MemoListUiState> = _uiState.asStateFlow()
 
+    // 一次性事件通知（删除失败等）
+    private val _errorEvent = MutableStateFlow<String?>(null)
+    val errorEvent: StateFlow<String?> = _errorEvent.asStateFlow()
+
     init {
         loadMemos()
     }
@@ -42,9 +46,13 @@ class MemoListViewModel(
             try {
                 repository.deleteMemo(memo)
             } catch (e: Exception) {
-                // 删除失败时不做额外处理，Flow 会自动刷新列表
+                _errorEvent.value = e.message ?: "删除失败"
             }
         }
+    }
+
+    fun clearError() {
+        _errorEvent.value = null
     }
 }
 

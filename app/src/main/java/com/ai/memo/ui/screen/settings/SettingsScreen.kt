@@ -34,32 +34,37 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ai.memo.data.local.AiProvider
-import com.ai.memo.data.local.SecureStorage
-import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
-    secureStorage: SecureStorage = koinInject()
+    viewModel: SettingsViewModel = koinViewModel()
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val selectedProviderId by viewModel.selectedProviderId.collectAsStateWithLifecycle()
+    val apiKeys by viewModel.apiKeys.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
 
-    var selectedProviderId by remember {
-        mutableStateOf(secureStorage.getSelectedProvider())
+    // 显示 Snackbar 消息
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbar()
+        }
     }
 
     Scaffold(
@@ -126,16 +131,12 @@ fun SettingsScreen(
                 ProviderCard(
                     provider = provider,
                     isSelected = selectedProviderId == provider.id,
-                    apiKey = secureStorage.getApiKey(provider.id),
+                    apiKey = apiKeys[provider.id] ?: "",
                     onSelect = {
-                        selectedProviderId = provider.id
-                        secureStorage.saveSelectedProvider(provider.id)
+                        viewModel.selectProvider(provider.id)
                     },
                     onApiKeySaved = { key ->
-                        secureStorage.saveApiKey(provider.id, key)
-                        scope.launch {
-                            snackbarHostState.showSnackbar("${provider.displayName} API Key 已保存")
-                        }
+                        viewModel.saveApiKey(provider.id, key)
                     }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -154,9 +155,8 @@ private fun ProviderCard(
     onSelect: () -> Unit,
     onApiKeySaved: (String) -> Unit
 ) {
-    var editingKey by remember { mutableStateOf(apiKey) }
+    var editingKey by remember(apiKey) { mutableStateOf(apiKey) }
     var showKey by remember { mutableStateOf(false) }
-    var isEditing by remember { mutableStateOf(apiKey.isBlank()) }
 
     Card(
         modifier = Modifier
@@ -237,7 +237,6 @@ private fun ProviderCard(
                         if (editingKey != apiKey && editingKey.isNotBlank()) {
                             IconButton(onClick = {
                                 onApiKeySaved(editingKey)
-                                isEditing = false
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
