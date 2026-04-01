@@ -190,13 +190,18 @@ class MemoRepositoryImpl(
             userMessage = rawText
         )
 
-        val content = response.choices.firstOrNull()?.message?.content
+        val rawContent = response.choices.firstOrNull()?.message?.content
             ?: throw IllegalStateException("AI 返回结果为空，请重试")
+
+        // 提取 JSON：兼容不同 AI 提供商的输出格式
+        // DeepSeek/OpenAI 有 response_format 保证纯 JSON
+        // Claude 可能会在 JSON 外面包裹 markdown 代码块
+        val content = extractJson(rawContent)
 
         val parseResult = try {
             json.decodeFromString<MemoParseResult>(content)
         } catch (e: Exception) {
-            throw IllegalStateException("AI 返回格式异常: ${e.message}")
+            throw IllegalStateException("AI 返回格式异常: ${e.message}\n原始响应: $rawContent")
         }
 
         return Memo(
@@ -219,5 +224,37 @@ class MemoRepositoryImpl(
 
     override suspend fun deleteMemo(memo: Memo) {
         memoDao.delete(MemoEntity.fromDomain(memo))
+    }
+
+    /**
+     * 从 AI 响应中提取纯 JSON 字符串
+     * 处理以下情况：
+     * 1. 纯 JSON（DeepSeek/OpenAI 的 json_object 模式）
+     * 2. ```json ... ``` 包裹（Claude 常见）
+     * 3. ``` ... ``` 包裹
+     * 4. JSON 前后有多余文字
+     */
+    private fun extractJson(raw: String): String {
+        val trimmed = raw.trim()
+
+        // 已经是纯 JSON
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            return trimmed
+        }
+
+        // 提取 ```json ... ``` 或 ``` ... ``` 中的内容
+        val codeBlockRegex = Regex("```(?:json)?\\s*\\n?(\\{[\\s\\S]*?\\})\\s*\\n?```")
+        codeBlockRegex.find(trimmed)?.let {
+            return it.groupValues[1].trim()
+        }
+
+        // 最后尝试：找到第一个 { 和最后一个 } 之间的内容
+        val firstBrace = trimmed.indexOf('{')
+        val lastBrace = trimmed.lastIndexOf('}')
+        if (firstBrace != -1 && lastBrace > firstBrace) {
+            return trimmed.substring(firstBrace, lastBrace + 1)
+        }
+
+        return trimmed
     }
 }

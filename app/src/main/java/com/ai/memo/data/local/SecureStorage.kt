@@ -88,7 +88,7 @@ enum class AiProvider(
         displayName = "Claude",
         baseUrl = "https://api.anthropic.com/",
         model = "claude-sonnet-4-20250514",
-        description = "Anthropic Claude，推理能力强"
+        description = "Anthropic Claude Sonnet 4，推理能力强"
     ),
     OPENAI(
         id = "openai",

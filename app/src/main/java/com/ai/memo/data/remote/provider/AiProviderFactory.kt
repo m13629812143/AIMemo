@@ -11,6 +11,9 @@ import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFact
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
+import retrofit2.HttpException
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.Body
 import retrofit2.http.Header
@@ -35,10 +38,17 @@ class AiProviderFactory(
         systemPrompt: String,
         userMessage: String
     ): ChatResponse {
-        return when (provider) {
-            AiProvider.DEEP_SEEK -> callDeepSeek(apiKey, systemPrompt, userMessage)
-            AiProvider.CLAUDE -> callClaude(provider, apiKey, systemPrompt, userMessage)
-            AiProvider.OPENAI -> callOpenAI(apiKey, systemPrompt, userMessage)
+        return try {
+            when (provider) {
+                AiProvider.DEEP_SEEK -> callDeepSeek(apiKey, systemPrompt, userMessage)
+                AiProvider.CLAUDE -> callClaude(provider, apiKey, systemPrompt, userMessage)
+                AiProvider.OPENAI -> callOpenAI(apiKey, systemPrompt, userMessage)
+            }
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: "无响应体"
+            throw IllegalStateException(
+                "${provider.displayName} API 错误 (HTTP ${e.code()}): $errorBody"
+            )
         }
     }
 
@@ -62,6 +72,10 @@ class AiProviderFactory(
     }
 
     // ==================== Claude ====================
+    // Claude API 格式与 OpenAI 完全不同：
+    // - system prompt 是顶层字段，不在 messages 里
+    // - 没有 response_format 参数
+    // - 认证用 x-api-key header，不是 Bearer token
     private suspend fun callClaude(
         provider: AiProvider,
         apiKey: String,
@@ -80,7 +94,7 @@ class AiProviderFactory(
                 )
             )
         )
-        // 将 Claude 响应转换为统一格式
+        // 将 Claude 响应转换为统一的 ChatResponse 格式
         return ChatResponse(
             id = response.id,
             choices = listOf(
@@ -97,7 +111,6 @@ class AiProviderFactory(
     }
 
     // ==================== OpenAI ====================
-    // OpenAI 和 DeepSeek 的 API 格式兼容
     private suspend fun callOpenAI(
         apiKey: String,
         systemPrompt: String,
@@ -149,7 +162,6 @@ interface ClaudeEndpoint {
     suspend fun createMessage(
         @Header("x-api-key") apiKey: String,
         @Header("anthropic-version") version: String = "2023-06-01",
-        @Header("content-type") contentType: String = "application/json",
         @Body request: ClaudeRequest
     ): ClaudeResponse
 }
